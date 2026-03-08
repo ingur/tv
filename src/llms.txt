@@ -1,0 +1,288 @@
+# tv — Terminal for Agents (Reference)
+
+tv gives agents their own persistent terminal sessions. Run commands, read
+output, and control interactive programs — all programmatically.
+Run `tv llms` to print this reference.
+
+IMPORTANT: You operate INSIDE a session created by the user. Never create
+sessions yourself — that is the user's job. Use `tv tag` to identify yourself,
+`tv ls` to discover sessions, and exec/peek/history to interact with them.
+
+## Core Workflow: Peek → Act → Verify
+
+Every interaction follows this cycle:
+
+  tv peek @s -j                              1. check current state
+  tv exec @s "command" {cr} {wait:5s}        2. act
+  tv peek @s -j                              3. verify the result
+
+Sessions are shared — the user or other agents may be actively using them.
+Always peek before sending keystrokes to avoid interfering with work in
+progress. Never assume success without checking.
+
+## Session Identification
+
+- **Hex ID**: 4-char hex (e.g. `a1b2`). Prefix matching works.
+- **Tag**: `@name` (e.g. `@work`). Set with `tv tag @name`.
+- **Omitted**: targets your own session (resolved via process ancestry).
+
+## Commands
+
+### tv ls
+List active sessions, sorted by most recent activity.
+  tv ls [-a] [-j] [selector]
+  -a    include hidden sessions
+  -j    JSON (extra: pid, visible, in_alt_screen, created_at,
+        last_activity as epoch, full cwd)
+
+### tv peek / tv p
+Read current visible screen content.
+  tv peek -j [selector]          JSON with metadata (use this)
+  tv peek [selector]             raw text (for piping to grep/tail)
+  JSON fields: content, rows, cols, cursor_row, cursor_col, in_alt_screen
+
+### tv history / tv h
+Read scrollback history (lines that scrolled off screen + current screen).
+  tv history -j [-n count] [-o offset] [selector]
+  tv history [-n count] [-o offset] [selector]
+  -n count    number of lines from end
+  -o offset   skip N lines from end
+  JSON fields: content
+
+History captures output that has scrolled off the visible screen. For what's
+currently visible, use tv peek.
+
+Note: alt-screen programs (vim, less, htop) do NOT write to history.
+
+### tv exec / tv x
+Send keystrokes to a session. Blocks until all keys are delivered.
+  tv exec <selector> <keys>...
+
+Always include {cr} to press Enter — without it, text is typed but never runs:
+  tv exec @s "ls -la" {cr}              correct
+  tv exec @s "ls -la"                   just types, never submits
+
+Braces in typed text must be escaped:
+  tv exec @s "echo {{hello}}" {cr}      sends: echo {hello}
+
+### tv tag / tv t
+Get, set, or delete session tags.
+  tv tag                    show own tag
+  tv tag @name              set own tag
+  tv tag <selector> @name   set another session's tag
+  tv tag -d                 delete own tag
+
+### tv show / tv hide
+Control session visibility in tv ls.
+  tv show [selector]
+  tv hide [selector]
+
+### tv clear
+Clear scrollback and history buffer.
+  tv clear [selector]
+
+## Key Syntax
+
+Each argument to `tv exec` can mix literal text and {expressions}.
+A configurable delay (default 50ms) is inserted between separate arguments.
+
+### Key Names
+  {cr} {enter}      Enter/Return
+  {esc}             Escape
+  {tab} {s-tab}     Tab / Shift+Tab
+  {bs} {backspace}  Backspace
+  {space}           Space
+  {del} {delete}    Delete
+  {up} {down} {left} {right}   Arrow keys
+  {home} {end} {insert}        Navigation
+  {pageup} {pagedown}          Page Up/Down
+  {f1}..{f12}                  Function keys
+  {nul}                        NUL byte (0x00)
+  {stdin}                      piped input (see "Writing Files" below)
+
+### Modifiers
+  {c-KEY}     Ctrl       e.g. {c-c} {c-d} {c-z} {c-a}
+  {a-KEY}     Alt/Meta   e.g. {a-x} {a-f}
+  {s-KEY}     Shift      e.g. {s-tab} {s-up}
+  Combinable: {c-s-up} for Ctrl+Shift+Up
+
+### Escaped Braces
+  {{ → literal {      }} → literal }
+
+## Timing
+
+### {wait:DURATION} — Smart Wait (use by default)
+
+Watches terminal output and returns early once it settles. Falls back to
+DURATION as a hard maximum.
+
+  {wait:10s}       wait up to 10s, idle threshold 1s (default)
+  {wait:30s:2s}    wait up to 30s, idle threshold 2s
+  {wait:2m:5s}     wait up to 2 minutes, idle threshold 5s
+
+Always use {wait} after commands that produce output:
+  tv exec @s "make build" {cr} {wait:60s}
+  tv exec @s "npm install" {cr} {wait:2m}
+  tv exec @s "cargo test" {cr} {wait:2m:3s}
+
+For bursty output (builds, installs), increase the idle threshold to avoid
+returning during a gap between output chunks.
+
+### {sleep:DURATION} — Fixed Delay
+
+Always waits exactly the specified time. No output monitoring.
+Use only when there is no output to detect:
+  tv exec @s "ssh prod" {cr} {sleep:3s}        connection setup
+  tv exec @s "vim file" {cr} {sleep:500ms}      app startup
+
+### Duration Syntax
+  500ms  2s  1m  1h  1m30s  (bare number = milliseconds)
+
+## Writing Files and Multiline Content
+
+For anything beyond simple one-liners, pipe content via {stdin}. This avoids
+brace escaping, manual {cr} insertion, and special character issues.
+
+### How {stdin} Works
+
+{stdin} reads all piped input and inserts it as keystrokes at its position in
+the key sequence. Newlines in the piped text become Enter keystrokes. One
+trailing newline is automatically stripped (since echo/heredocs always add one).
+Can appear once per command. Requires piped input.
+
+### The File Writing Pattern
+
+To write a file in a session, use a shell heredoc in the target session and
+pipe the content via {stdin}:
+
+  printf 'hello world' | tv exec @s "cat > file.txt << 'EOF'" {cr} {stdin} {cr} EOF {cr}
+
+Breaking it down:
+  "cat > file.txt << 'EOF'" {cr}    types the heredoc command + Enter
+  {stdin}                            inserts piped content (newlines → Enter)
+  {cr}                               Enter after the last line of content
+  EOF {cr}                           closes the heredoc
+
+### Multiline Files
+
+For content with quotes, special characters, or many lines, use a heredoc on
+the piping side too:
+
+  cat << 'INPUT' | tv exec @s "cat > deploy.sh << 'EOF'" {cr} {stdin} {cr} EOF {cr}
+  #!/bin/bash
+  set -e
+  echo "deploying ${APP_NAME}"
+  docker-compose up -d
+  INPUT
+
+No escaping needed at any level — braces, quotes, $variables, and special
+characters are all sent verbatim. Use different delimiters for the outer
+heredoc (INPUT) and inner heredoc (EOF).
+
+### Simple Cases
+
+For short single-line content, regular exec works fine:
+  tv exec @s "echo hello > file.txt" {cr} {wait:2s}
+
+## Output Processing
+
+Default output is clean raw text. Use -j (JSON) when you need structured
+data or metadata. Use plain output when piping to grep/tail/head.
+
+  tv peek @s -j | jq -r .content          extract content from JSON
+  tv peek @s -j | jq .in_alt_screen       check if in a TUI
+  tv peek @s -j | jq .cursor_row          read cursor position
+  tv peek @s | grep -i error              search screen for errors
+  tv peek @s | tail -5                    last 5 lines on screen
+  tv history @s -n 500 | grep FAIL        search scrollback
+  tv ls -j | jq '.[].tag'                list all tags
+
+Errors go to stderr — piped stdout is always clean.
+
+## Alt-Screen Programs (vim, less, htop)
+
+Some programs use an alternate screen buffer:
+  tv peek    → shows alt-screen content (what's currently visible)
+  tv history → returns scrollback from BEFORE alt-screen entry only
+  tv peek -j → "in_alt_screen" tells you which mode you're in
+
+## Agent Workflows
+
+### Setup
+  tv tag                                    see your own session ID and tag
+  tv tag @agent                             tag yourself for identification
+  tv ls                                     discover all active sessions
+
+### Run a Command and Read Output
+  tv peek @s -j                             check state first
+  tv exec @s "ls -la" {cr} {wait:5s}
+  tv peek @s -j                             read the result
+
+### Build and Check for Errors
+  tv exec @s "cargo build" {cr} {wait:2m:5s}
+  tv peek @s | grep -i error                search visible screen
+  tv history @s -n 200 | grep -i error      search full output
+
+### Write a File, Run It, Verify
+  cat << 'INPUT' | tv exec @s "cat > /tmp/test.py << 'EOF'" {cr} {stdin} {cr} EOF {cr}
+  import json
+  data = {"status": "ok", "count": 42}
+  print(json.dumps(data, indent=2))
+  INPUT
+  tv exec @s "python3 /tmp/test.py" {cr} {wait:5s}
+  tv peek @s -j
+  tv exec @s "rm /tmp/test.py" {cr} {wait:2s}
+
+### Chain Multiple Commands
+  tv exec @s "cd /app" {cr} {wait:2s} "npm install" {cr} {wait:30s}
+
+### Interrupt a Stuck Process
+  tv exec @s {c-c}
+  tv peek @s -j                             verify it stopped
+
+### Navigate a TUI
+  tv peek @s -j                             check in_alt_screen first
+  tv exec @s {esc} ":wq" {cr}              vim: save and quit
+  tv exec @s {esc} ":q!" {cr}              vim: quit without saving
+  tv exec @s "q"                            less/man: quit
+  tv exec @s {c-d}                          exit shell / EOF
+
+### Search Long Output
+  tv exec @s "cargo test" {cr} {wait:60s}
+  tv history @s -n 500 | grep "FAILED"      find failures
+  tv history @s -n 500 | tail -20           see summary
+
+### Monitor a Long-Running Process
+  tv exec @s "npm run dev" {cr} {sleep:2s}
+  tv peek @s | grep "ready"                 check later
+
+### Work With SSH
+  tv exec @s "ssh user@host" {cr} {sleep:3s}
+  tv peek @s -j                              verify connected
+  tv exec @s "ls" {cr} {wait:5s}
+  tv peek @s -j
+
+## Best Practices
+
+1. Peek before you act — check what's on screen before sending keystrokes.
+2. Sessions are shared — the user may be typing. Don't blindly send keys.
+3. Always add {cr} after commands — they won't run without Enter.
+4. Always {wait} after commands that produce output — don't guess timing.
+5. Peek after important operations — never assume success.
+6. Use -j for structured data, plain output for piping to grep/tail.
+7. Use {wait:D:T} with a longer idle threshold for bursty output.
+8. Use {sleep} only when there's no terminal output to detect.
+9. Use tv history when output scrolled off screen — peek only shows what's visible.
+10. Use {stdin} for multiline content — avoids all escaping problems.
+
+## Configuration
+
+File: ~/.config/tv/config.toml
+
+  default_visibility = "visible"   # or "hidden"
+  default_permission = "prompt"    # or "allow" / "deny"
+  output_format = "pretty"         # or "json"
+  history_size = 10000             # scrollback lines retained
+  send_delay_ms = 50               # delay between exec arguments (ms)
+  idle_threshold_ms = 1000         # default idle threshold for {wait} (ms)
+  log_level = "info"               # daemon log level
