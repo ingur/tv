@@ -1,11 +1,15 @@
-# tv
+<p align="center">
+  <h1 align="center">tv</h1>
+</p>
 
-Terminal for agents.
+![tv](https://github.com/user-attachments/assets/454c5f57-d8fc-4ce1-b27b-59ea4897afd5)
 
-tv enables human-agent collaboration through shared terminal sessions. Agents
-interact through a simple CLI, humans stay in control through built-in
-permissions. No assumptions about the environment — if it works in a terminal,
-it works with tv.
+<p align="center">
+  tv enables human-agent collaboration through shared terminal sessions. Agents
+  interact through a simple CLI, humans stay in control through built-in
+  permissions. No assumptions about the environment — if it works in a terminal,
+  it works with tv.
+</p>
 
 ## Install
 
