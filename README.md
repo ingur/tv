@@ -29,6 +29,12 @@ tv peek @work -j
 tv history @work -n 100
 ```
 
+## Why?
+- I wanted a terminal tool that works securely with any setup
+- I wanted to be able to to collaborate with any AI agent on complex tasks
+- I hated having to copy paste commands/outputs/errors between terminals and agents
+- I wanted my AI tools to be able to control any TUI application without requiring custom editors
+
 ## How It Works
 
 tv runs a daemon that manages terminal sessions (PTY + terminal emulator).
