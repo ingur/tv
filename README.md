@@ -73,13 +73,17 @@ agent's context and it will know how to use tv.
 
 ## Key Features
 
-- **Persistent sessions** — sessions survive agent disconnects and restarts
 - **Real terminal emulation** — full PTY with alacritty's terminal emulator
+- **Permission prompts** — user approves agent actions in the session UI
+- **Session discovery** — agents find sessions by tag or ID, see CWD and activity
+- **Persistent sessions** — sessions survive agent disconnects and restarts
 - **Smart wait** — `{wait:30s}` returns early when output settles, no guessing
 - **Piped input** — `echo "content" | tv exec @s {stdin} {cr}` for multiline/special chars
-- **Permission prompts** — user approves agent actions in the session UI
 - **JSON output** — `tv peek -j` returns structured data with cursor position, dimensions, alt-screen status
-- **Session discovery** — agents find sessions by tag or ID, see CWD and activity
+
+## Future Goals
+- Evaluate moving to libghostty for future versions
+- Use `interprocess` crate to add Windows support through named pipes
 
 ## AI Disclaimer
 
