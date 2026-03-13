@@ -262,12 +262,20 @@ impl super::Session {
     }
 
     /// Try to show the next prompt if none is active.
+    /// Re-checks permissions for queued items if permission was granted since
+    /// enqueue time, routes them directly to execution instead of prompting.
     fn try_show_prompt(&mut self) {
         if self.dispatch.prompt_state.is_pending() {
             return; // Already showing a prompt
         }
 
-        if let Some((request, permission_type)) = self.dispatch.prompt_queue.pop_front() {
+        while let Some((request, permission_type)) = self.dispatch.prompt_queue.pop_front() {
+            if self.dispatch.permissions.is_allowed(&request.source_id, permission_type) {
+                let category = classify_request(&request.request);
+                let _ = self.route_to_execution(request, category);
+                continue;
+            }
+
             self.dispatch.prompt_state = PromptState::Pending {
                 request,
                 permission_type,
@@ -276,6 +284,7 @@ impl super::Session {
                 scroll_offset: 0,
             };
             self.view.mark_dirty();
+            return;
         }
     }
 
