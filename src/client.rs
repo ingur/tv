@@ -152,7 +152,6 @@ pub fn run_request(
 /// Convert CLI command to IPC Request and determine output format.
 fn command_to_request(cmd: Commands, config: &Config) -> Result<(Request, OutputFormat)> {
     let result = match cmd {
-        Commands::New { .. } => unreachable!("new handled in main"),
         Commands::Daemon { .. } => unreachable!("daemon handled in main"),
         Commands::Llms => unreachable!("llms handled in main"),
 

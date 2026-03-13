@@ -17,7 +17,7 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use clap::Parser;
 
-use cli::{Cli, Commands, DaemonAction};
+use cli::{Cli, DaemonAction};
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -26,14 +26,14 @@ fn main() -> Result<()> {
     let config = config::Config::load()?;
 
     match cli.command {
-        // Start new session
-        Commands::New { tag } => {
+        // No subcommand — start new session
+        None => {
             let conn = get_session_connection()?;
-            session::run(conn, &config, tag.map(|t| t.0))
+            session::run(conn, &config, cli.tag.map(|t| t.0))
         }
 
         // Daemon management (special cases)
-        Commands::Daemon { action } => match action {
+        Some(cli::Commands::Daemon { action }) => match action {
             DaemonAction::Start => {
                 if is_daemon_running() {
                     anyhow::bail!("daemon already running");
@@ -60,13 +60,13 @@ fn main() -> Result<()> {
         },
 
         // LLM reference — no daemon needed
-        Commands::Llms => {
+        Some(cli::Commands::Llms) => {
             print!("{}", include_str!("llms.txt"));
             Ok(())
         }
 
         // Regular commands
-        cmd => {
+        Some(cmd) => {
             let conn = get_client_connection()?;
             client::run(conn, cmd, &config)
         }

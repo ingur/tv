@@ -20,7 +20,7 @@ const STYLES: Styles = Styles::styled()
     version,
     about = "Terminal for agents",
     long_about = "Terminal for agents.\n\n\
-        Use 'tv new' to start a new terminal session.\n\
+        Run 'tv' to start a new terminal session.\n\
         Use subcommands from within a session to interact with other sessions.",
     after_help = "\
 Sessions are identified by a short hex ID (e.g. a1b2) or a tag (e.g. @work).
@@ -32,19 +32,16 @@ Use 'tv llms' for a full programmatic reference (for AI agents).",
     styles = STYLES
 )]
 pub struct Cli {
+    /// Tag for the new session (e.g. @work)
+    #[arg(short = 't', long = "tag")]
+    pub tag: Option<Tag>,
+
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Start a new terminal session
-    #[command(visible_alias = "n")]
-    New {
-        /// Tag for this session (e.g. @work)
-        tag: Option<Tag>,
-    },
-
     /// Daemon management
     #[command(hide = true)]
     Daemon {

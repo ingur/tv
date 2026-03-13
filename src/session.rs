@@ -129,6 +129,7 @@ impl Session {
         let mut cmd = CommandBuilder::new_default_prog();
         cmd.cwd(std::env::current_dir()?);
         cmd.env("TERM", "xterm-256color");
+        cmd.env("TV_SESSION", "1");
 
         let child = pair.slave.spawn_command(cmd)?;
         drop(pair.slave);

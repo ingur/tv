@@ -21,7 +21,8 @@ cargo install --path .
 
 ```bash
 # Start a new session
-tv new @work
+tv
+tv -t @work    # with a tag
 
 # From another terminal (or an agent), interact with it
 tv exec @work "ls -la" {cr} {wait:5s}
@@ -62,7 +63,7 @@ agent's context and it will know how to use tv.
 
 | Command | Alias | Description |
 |---------|-------|-------------|
-| `tv new [@tag]` | `tv n` | Start a new terminal session |
+| `tv [-t @tag]` | | Start a new terminal session |
 | `tv exec <sel> <keys>` | `tv x` | Send keystrokes to a session |
 | `tv peek [sel]` | `tv p` | Read current screen content |
 | `tv history [sel]` | `tv h` | Read scrollback history |
@@ -80,6 +81,13 @@ agent's context and it will know how to use tv.
 - **Smart wait** — `{wait:30s}` returns early when output settles, no guessing
 - **Piped input** — `echo "content" | tv exec @s {stdin} {cr}` for multiline/special chars
 - **JSON output** — `tv peek -j` returns structured data with cursor position, dimensions, alt-screen status
+
+## Shell Auto-Launch
+
+```zsh
+# .zshrc / .bashrc
+[[ -z "$TV_SESSION" ]] && exec tv
+```
 
 ## Future Goals
 - Evaluate moving to libghostty for future versions
