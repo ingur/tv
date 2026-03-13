@@ -3,6 +3,7 @@
 use std::collections::VecDeque;
 
 use alacritty_terminal::vte::{Params, Perform};
+use unicode_width::UnicodeWidthChar;
 
 const CHAR_BACKSPACE: u8 = 0x08;
 const CHAR_TAB: u8 = 0x09;
@@ -138,7 +139,12 @@ impl Screen {
             &self.cells
         };
         if row < cells.len() {
-            cells[row].iter().collect::<String>().trim_end().to_string()
+            cells[row]
+                .iter()
+                .filter(|&&c| c != '\0')
+                .collect::<String>()
+                .trim_end()
+                .to_string()
         } else {
             String::new()
         }
@@ -284,7 +290,13 @@ impl TextParser {
                     saved
                         .cells
                         .iter()
-                        .map(|row| row.iter().collect::<String>().trim_end().to_string())
+                        .map(|row| {
+                            row.iter()
+                                .filter(|&&c| c != '\0')
+                                .collect::<String>()
+                                .trim_end()
+                                .to_string()
+                        })
                         .collect()
                 } else {
                     Vec::new()
@@ -524,6 +536,11 @@ impl TextParser {
 
 impl Perform for TextParser {
     fn print(&mut self, c: char) {
+        let width = UnicodeWidthChar::width(c).unwrap_or(0);
+        if width == 0 {
+            return;
+        }
+
         let (mut row, mut col) = self.screen.cursor();
         let cols = self.screen.cols;
         let (_, scroll_bottom) = self.screen.scroll_region();
@@ -539,7 +556,10 @@ impl Perform for TextParser {
         }
 
         self.screen.active_cells()[row][col] = c;
-        self.screen.set_cursor(row, col + 1);
+        if width == 2 && col + 1 < cols {
+            self.screen.active_cells()[row][col + 1] = '\0';
+        }
+        self.screen.set_cursor(row, col + width);
     }
 
     fn execute(&mut self, byte: u8) {
