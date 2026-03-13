@@ -2,7 +2,7 @@
 name = "tv"
 version = "1.0.0"
 edition = "2024"
-description = "Terminal for agents"
+description = "Collaborative terminal for humans and agents"
 repository = "https://github.com/ingur/tv"
 license = "Apache-2.0"
 

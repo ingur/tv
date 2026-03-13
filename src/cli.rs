@@ -18,8 +18,8 @@ const STYLES: Styles = Styles::styled()
 #[command(
     name = "tv",
     version,
-    about = "Terminal for agents",
-    long_about = "Terminal for agents.\n\n\
+    about = "Collaborative terminal for humans and agents",
+    long_about = "Collaborative terminal for humans and agents.\n\n\
         Run 'tv' to start a new terminal session.\n\
         Use subcommands from within a session to interact with other sessions.",
     after_help = "\

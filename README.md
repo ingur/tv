@@ -22,7 +22,8 @@ cargo install --path .
 ```bash
 # Start a new session
 tv
-tv -t @work    # with a tag
+# Or with a tag
+tv -t @work
 
 # From another terminal (or an agent), interact with it
 tv exec @work "ls -la" {cr} {wait:5s}
@@ -84,8 +85,9 @@ agent's context and it will know how to use tv.
 
 ## Shell Auto-Launch
 
+Place at the top of your shell config (`.zshrc`, `.bashrc` etc.) to start tv automatically:
+
 ```zsh
-# .zshrc / .bashrc
 [[ -z "$TV_SESSION" ]] && exec tv
 ```
 
